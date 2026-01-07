@@ -1,0 +1,72 @@
+{
+  "name": "experiment",
+  "displayName": "experiment",
+  "description": "simple code extension for showing selected code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": ["Other"],
+
+  "activationEvents": [
+    "onCommand:experiment.showSelectedCode"
+  ],
+
+  "main": "./out/extension.js",
+
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "experimentSidebar",
+          "title": "Experiment",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+
+    "views": {
+      "experimentSidebar": [
+        {
+          "id": "codeTree",
+          "name": "Selected Code"
+        }
+      ]
+    },
+
+    "commands": [
+      {
+        "command": "experiment.showSelectedCode",
+        "title": "Show Selected Code"
+      }
+    ],
+
+    "keybindings": [
+      {
+        "command": "experiment.showSelectedCode",
+        "key": "ctrl+alt+c",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+
+  "devDependencies": {
+    "@types/vscode": "^1.107.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.48.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
