@@ -1,0 +1,42 @@
+import * as vscode from "vscode";
+
+export class CodeTreeProvider implements vscode.TreeDataProvider<TreeItem> {
+  private _onDidChangeTreeData =
+    new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData =
+    this._onDidChangeTreeData.event;
+
+  refresh() {
+    this._onDidChangeTreeData.fire();
+  }
+
+  getTreeItem(element: TreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(): TreeItem[] {
+    return [
+      new TreeItem(
+        "Explain Selected Code",
+        "experiment.openExplanation"
+      ),
+      new TreeItem(
+        "Show Execution Flow",
+        "experiment.openExplanation"
+      )
+    ];
+  }
+}
+
+class TreeItem extends vscode.TreeItem {
+  constructor(
+    label: string,
+    commandName: string
+  ) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.command = {
+      command: commandName,
+      title: label
+    };
+  }
+}

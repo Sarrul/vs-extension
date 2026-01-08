@@ -1,46 +1,76 @@
-import * as vscode from 'vscode';
-
-let currentCode = 'Select code and run the command';
+import * as vscode from "vscode";
+import { CodeTreeProvider } from "./providers/CodeTreeProvider";
+import { CodeWebviewProvider } from "./providers/CodeWebviewProvider";
 
 export function activate(context: vscode.ExtensionContext) {
-    const treeProvider = new CodeTreeProvider();
+  const treeProvider = new CodeTreeProvider();
 
-    vscode.window.registerTreeDataProvider('codeTree', treeProvider);
+  vscode.window.registerTreeDataProvider("codeTree", treeProvider);
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('experiment.showSelectedCode', () => {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                vscode.window.showErrorMessage('No active editor');
-                return;
-            }
+  //   diagnostic helper functions
+  function getDiagnostics(document: vscode.TextDocument) {
+    return vscode.languages.getDiagnostics(document.uri);
+  }
 
-            currentCode =
-                editor.document.getText(editor.selection) || 'No code selected';
+  // get error context
+  function getErrorContext(
+    document: vscode.TextDocument,
+    range: vscode.Range,
+    padding = 8
+  ) {
+    const startLine = Math.max(0, range.start.line - padding);
+    const endLine = Math.min(document.lineCount - 1, range.end.line + padding);
 
-            treeProvider.refresh();
-        })
-    );
-}
+    return document.getText(new vscode.Range(startLine, 0, endLine, 0));
+  }
 
-class CodeTreeProvider implements vscode.TreeDataProvider<string> {
-    private _onDidChangeTreeData =
-        new vscode.EventEmitter<string | undefined>();
+  // summary
+  function summarizeFile(document: vscode.TextDocument): string {
+    const text = document.getText();
 
-    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+    const imports = (text.match(/^import .*$/gm) || []).length;
+    const functions = (text.match(/function\s+\w+|\=\>/g) || []).length;
 
-    refresh() {
-        this._onDidChangeTreeData.fire(undefined);
-    }
+    return `
+- Language: ${document.languageId}
+- Imports: ${imports}
+- Functions/Blocks: ${functions}
+- File: ${document.uri.fsPath.split("/").pop()}
+  `.trim();
+  }
 
-    getTreeItem(element: string): vscode.TreeItem {
-        return new vscode.TreeItem(
-            element,
-            vscode.TreeItemCollapsibleState.None
-        );
-    }
+  context.subscriptions.push(
+    vscode.commands.registerCommand("experiment.openExplanation", () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage("No active editor");
+        return;
+      }
 
-    getChildren(): string[] {
-        return [currentCode];
-    }
+      const document = editor.document;
+
+      const selectedCode =
+        document.getText(editor.selection) || "No code selected";
+
+      const diagnostics = getDiagnostics(document);
+
+      let errorText = "No errors detected.";
+      let relevantCode = "N/A";
+
+      if (diagnostics.length > 0) {
+        const diag = diagnostics[0];
+        errorText = diag.message;
+        relevantCode = getErrorContext(document, diag.range);
+      }
+
+      const summary = summarizeFile(document);
+
+      CodeWebviewProvider.show(context, {
+        summary,
+        errorText,
+        relevantCode,
+        selectedCode,
+      });
+    })
+  );
 }
