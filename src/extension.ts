@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { CodeTreeProvider } from "./providers/CodeTreeProvider";
 import { CodeWebviewProvider } from "./providers/CodeWebviewProvider";
+import { extractCallGraph } from "./analyzers/callGraphAnalyzer";
+import { callGraphToMermaid } from "./analyzers/mermaidGenerator";
 
 export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new CodeTreeProvider();
@@ -64,12 +66,15 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       const summary = summarizeFile(document);
+      const callGraph = extractCallGraph(document.getText());
+      const mermaidDiagram = callGraphToMermaid(callGraph);
 
       CodeWebviewProvider.show(context, {
         summary,
         errorText,
         relevantCode,
         selectedCode,
+        mermaidDiagram,
       });
     })
   );

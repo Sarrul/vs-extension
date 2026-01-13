@@ -10,6 +10,7 @@ export class CodeWebviewProvider {
       errorText: string;
       relevantCode: string;
       selectedCode: string;
+      mermaidDiagram: string;
     }
   ) {
     const panel = vscode.window.createWebviewPanel(
@@ -40,7 +41,8 @@ export class CodeWebviewProvider {
       .replace("{{SUMMARY}}", this.escape(data.summary))
       .replace("{{ERROR}}", this.escape(data.errorText))
       .replace("{{RELEVANT}}", this.escape(data.relevantCode))
-      .replace("{{SELECTED}}", this.escape(data.selectedCode));
+      .replace("{{SELECTED}}", this.escape(data.selectedCode))
+      .replace("{{MERMAID}}", this.escape(data.mermaidDiagram));
 
     return html;
   }
