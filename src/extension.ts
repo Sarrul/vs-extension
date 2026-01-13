@@ -3,46 +3,29 @@ import { CodeTreeProvider } from "./providers/CodeTreeProvider";
 import { CodeWebviewProvider } from "./providers/CodeWebviewProvider";
 import { extractCallGraph } from "./analyzers/callGraphAnalyzer";
 import { callGraphToMermaid } from "./analyzers/mermaidGenerator";
+import { scanWorkspaceFiles } from "./analyzers/workspaceScanner";
+import { loadWorkspaceFileContents } from "./analyzers/fileContentLoader";
+import { fileIndex } from "./state/fileIndex";
 
 export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new CodeTreeProvider();
-
   vscode.window.registerTreeDataProvider("codeTree", treeProvider);
 
-  //   diagnostic helper functions
-  function getDiagnostics(document: vscode.TextDocument) {
-    return vscode.languages.getDiagnostics(document.uri);
-  }
+  const disposable = vscode.commands.registerCommand(
+    "experiment.showSelectedCode",
+    async () => {
+      /* ---------- PHASE 1: scan workspace ---------- */
+      const files = await scanWorkspaceFiles();
 
-  // get error context
-  function getErrorContext(
-    document: vscode.TextDocument,
-    range: vscode.Range,
-    padding = 8
-  ) {
-    const startLine = Math.max(0, range.start.line - padding);
-    const endLine = Math.min(document.lineCount - 1, range.end.line + padding);
+      /* ---------- PHASE 2.1: load file contents ---------- */
+      await loadWorkspaceFileContents(files);
 
-    return document.getText(new vscode.Range(startLine, 0, endLine, 0));
-  }
+      vscode.window.showInformationMessage(
+        `Indexed ${fileIndex.getAll().length} files with content`
+      );
 
-  // summary
-  function summarizeFile(document: vscode.TextDocument): string {
-    const text = document.getText();
+      /* ---------- existing UI logic (UNCHANGED) ---------- */
 
-    const imports = (text.match(/^import .*$/gm) || []).length;
-    const functions = (text.match(/function\s+\w+|\=\>/g) || []).length;
-
-    return `
-- Language: ${document.languageId}
-- Imports: ${imports}
-- Functions/Blocks: ${functions}
-- File: ${document.uri.fsPath.split("/").pop()}
-  `.trim();
-  }
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("experiment.openExplanation", () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showErrorMessage("No active editor");
@@ -52,30 +35,22 @@ export function activate(context: vscode.ExtensionContext) {
       const document = editor.document;
 
       const selectedCode =
-        document.getText(editor.selection) || "No code selected";
+        editor.selection && !editor.selection.isEmpty
+          ? document.getText(editor.selection)
+          : "No code selected";
 
-      const diagnostics = getDiagnostics(document);
-
-      let errorText = "No errors detected.";
-      let relevantCode = "N/A";
-
-      if (diagnostics.length > 0) {
-        const diag = diagnostics[0];
-        errorText = diag.message;
-        relevantCode = getErrorContext(document, diag.range);
-      }
-
-      const summary = summarizeFile(document);
       const callGraph = extractCallGraph(document.getText());
       const mermaidDiagram = callGraphToMermaid(callGraph);
 
       CodeWebviewProvider.show(context, {
-        summary,
-        errorText,
-        relevantCode,
+        summary: "Workspace indexed",
+        errorText: "N/A",
+        relevantCode: "N/A",
         selectedCode,
         mermaidDiagram,
       });
-    })
+    }
   );
+
+  context.subscriptions.push(disposable);
 }
