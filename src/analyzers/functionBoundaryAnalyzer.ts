@@ -1,8 +1,9 @@
-import ts from "typescript";
-import { FileRecord } from "../state/fileIndex";
+import * as ts from "typescript";
 import { functionIndex } from "../state/functionIndex";
 
-export function analyzeFunctionBoundaries(files: FileRecord[]) {
+export function analyzeFunctionBoundaries(
+  files: { path: string; text: string }[]
+) {
   functionIndex.clear();
 
   for (const file of files) {
@@ -13,41 +14,51 @@ export function analyzeFunctionBoundaries(files: FileRecord[]) {
       true
     );
 
-    function visit(node: ts.Node) {
-      // Function declaration
-      if (ts.isFunctionDeclaration(node) && node.name) {
-        const start = sourceFile.getLineAndCharacterOfPosition(
-          node.getStart()
-        ).line;
-        const end = sourceFile.getLineAndCharacterOfPosition(
-          node.getEnd()
-        ).line;
+    const functionStack: string[] = [];
 
-        functionIndex.add({
-          id: `${file.path}:${node.name.text}:${start}`,
-          name: node.name.text,
-          filePath: file.path,
-          startLine: start,
-          endLine: end,
-        });
+    function registerFunction(name: string, node: ts.Node) {
+      const parentFunction =
+        functionStack.length > 0
+          ? functionStack[functionStack.length - 1]
+          : undefined;
+
+      const startLine =
+        sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+
+      const endLine =
+        sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
+
+      functionIndex.add({
+        id: `${file.path}:${name}:${startLine}`,
+        name,
+        filePath: file.path,
+        startLine,
+        endLine,
+        parentFunction,
+      });
+
+      functionStack.push(name);
+      ts.forEachChild(node, visit);
+      functionStack.pop();
+    }
+
+    function visit(node: ts.Node) {
+      // function Home() {}
+      if (ts.isFunctionDeclaration(node) && node.name) {
+        registerFunction(node.name.text, node);
+        return;
       }
 
-      // Arrow function / function expression
-      if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
-        const start = sourceFile.getLineAndCharacterOfPosition(
-          node.getStart()
-        ).line;
-        const end = sourceFile.getLineAndCharacterOfPosition(
-          node.getEnd()
-        ).line;
-
-        functionIndex.add({
-          id: `${file.path}:anonymous:${start}`,
-          name: "anonymous",
-          filePath: file.path,
-          startLine: start,
-          endLine: end,
-        });
+      // const handleSubmitt = async () => {}
+      if (
+        ts.isVariableDeclaration(node) &&
+        node.initializer &&
+        (ts.isArrowFunction(node.initializer) ||
+          ts.isFunctionExpression(node.initializer)) &&
+        ts.isIdentifier(node.name)
+      ) {
+        registerFunction(node.name.text, node.initializer);
+        return;
       }
 
       ts.forEachChild(node, visit);

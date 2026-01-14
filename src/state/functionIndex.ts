@@ -4,6 +4,7 @@ export interface FunctionRecord {
   filePath: string;
   startLine: number;
   endLine: number;
+  parentFunction?: string;
 }
 
 class FunctionIndex {
@@ -21,11 +22,13 @@ class FunctionIndex {
     return this.functions;
   }
 
-  findByLine(filePath: string, line: number): FunctionRecord | undefined {
-    return this.functions.find(
+  findByLine(filePath: string, line: number) {
+    const matches = this.functions.filter(
       (fn) =>
         fn.filePath === filePath && line >= fn.startLine && line <= fn.endLine
     );
+
+    return matches.sort((a, b) => b.startLine - a.startLine)[0];
   }
 }
 
