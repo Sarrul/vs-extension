@@ -3,46 +3,49 @@ import { CodeTreeProvider } from "./providers/CodeTreeProvider";
 import { CodeWebviewProvider } from "./providers/CodeWebviewProvider";
 import { extractCallGraph } from "./analyzers/callGraphAnalyzer";
 import { callGraphToMermaid } from "./analyzers/mermaidGenerator";
+import { scanWorkspaceFiles } from "./analyzers/workspaceScanner";
+import { loadWorkspaceFileContents } from "./analyzers/fileContentLoader";
+import { fileIndex } from "./state/fileIndex";
+import { analyzeFunctionBoundaries } from "./analyzers/functionBoundaryAnalyzer";
+import { functionIndex } from "./state/functionIndex";
+import { mapErrorsToFunctions } from "./analyzers/errorFunctionMapper";
+import { analyzeFunctionCalls } from "./analyzers/functionCallAnalyzer";
+import { buildCallerChain } from "./analyzers/executionChainBuilder";
+import { analyzeRuntimeTriggers } from "./analyzers/runtimeTriggerAnalyzer";
+import { triggerIndex } from "./state/triggerIndex";
+import { buildExecutionMermaid } from "./analyzers/executionMermaidBuilder";
 
 export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new CodeTreeProvider();
-
   vscode.window.registerTreeDataProvider("codeTree", treeProvider);
 
-  //   diagnostic helper functions
-  function getDiagnostics(document: vscode.TextDocument) {
-    return vscode.languages.getDiagnostics(document.uri);
-  }
+  const disposable = vscode.commands.registerCommand(
+    "experiment.showSelectedCode",
+    async () => {
+      /* ---------- PHASE 1: scan workspace ---------- */
+      const files = await scanWorkspaceFiles();
 
-  // get error context
-  function getErrorContext(
-    document: vscode.TextDocument,
-    range: vscode.Range,
-    padding = 8
-  ) {
-    const startLine = Math.max(0, range.start.line - padding);
-    const endLine = Math.min(document.lineCount - 1, range.end.line + padding);
+      /* ---------- PHASE 2.1: load file contents ---------- */
+      await loadWorkspaceFileContents(files);
 
-    return document.getText(new vscode.Range(startLine, 0, endLine, 0));
-  }
+      /* ---------- PHASE 2.2: analyze function boundaries ---------- */
+      analyzeFunctionBoundaries(fileIndex.getAll());
 
-  // summary
-  function summarizeFile(document: vscode.TextDocument): string {
-    const text = document.getText();
+      vscode.window.showInformationMessage(
+        `Indexed ${fileIndex.getAll().length} files with content`
+      );
 
-    const imports = (text.match(/^import .*$/gm) || []).length;
-    const functions = (text.match(/function\s+\w+|\=\>/g) || []).length;
+      vscode.window.showInformationMessage(
+        `Indexed ${functionIndex.getAll().length} functions`
+      );
 
-    return `
-- Language: ${document.languageId}
-- Imports: ${imports}
-- Functions/Blocks: ${functions}
-- File: ${document.uri.fsPath.split("/").pop()}
-  `.trim();
-  }
+      /* ---------- PHASE 3: analyze function calls ---------- */
+      analyzeFunctionCalls(fileIndex.getAll());
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("experiment.openExplanation", () => {
+      /* ---------- PHASE 4A: analyze runtime triggers ---------- */
+      analyzeRuntimeTriggers(fileIndex.getAll());
+
+      /* ---------- ACTIVE EDITOR ---------- */
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showErrorMessage("No active editor");
@@ -51,31 +54,52 @@ export function activate(context: vscode.ExtensionContext) {
 
       const document = editor.document;
 
+      /* ---------- PHASE 2.3 + 3 + 4A: error mapping + chain + trigger ---------- */
+      const mappedErrors = mapErrorsToFunctions(document);
+
+      mappedErrors.forEach((err) => {
+        const chain = buildCallerChain(err.functionName, document.uri.fsPath);
+
+        const trigger = triggerIndex.find(
+          err.functionName,
+          document.uri.fsPath
+        );
+
+        console.log("[DEBUG] function:", err.functionName, "trigger:", trigger);
+
+        vscode.window.showErrorMessage(
+          `❌ ${chain.join(" → ")}: ${err.message}`
+        );
+
+        if (trigger) {
+          vscode.window.showInformationMessage(
+            `🔔 Triggered by: ${trigger.trigger}`
+          );
+        }
+      });
+
+      /* ---------- existing UI logic ---------- */
       const selectedCode =
-        document.getText(editor.selection) || "No code selected";
+        editor.selection && !editor.selection.isEmpty
+          ? document.getText(editor.selection)
+          : "No code selected";
 
-      const diagnostics = getDiagnostics(document);
+      const errorFunctions = mappedErrors.map((e) => e.functionName);
 
-      let errorText = "No errors detected.";
-      let relevantCode = "N/A";
-
-      if (diagnostics.length > 0) {
-        const diag = diagnostics[0];
-        errorText = diag.message;
-        relevantCode = getErrorContext(document, diag.range);
-      }
-
-      const summary = summarizeFile(document);
-      const callGraph = extractCallGraph(document.getText());
-      const mermaidDiagram = callGraphToMermaid(callGraph);
+      const mermaidDiagram = buildExecutionMermaid(
+        document.uri.fsPath,
+        errorFunctions
+      );
 
       CodeWebviewProvider.show(context, {
-        summary,
-        errorText,
-        relevantCode,
+        summary: "Workspace indexed",
+        errorText: "N/A",
+        relevantCode: "N/A",
         selectedCode,
         mermaidDiagram,
       });
-    })
+    }
   );
+
+  context.subscriptions.push(disposable);
 }

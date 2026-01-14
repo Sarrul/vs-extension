@@ -1,10 +1,8 @@
 import * as vscode from "vscode";
 
 export class CodeTreeProvider implements vscode.TreeDataProvider<TreeItem> {
-  private _onDidChangeTreeData =
-    new vscode.EventEmitter<void>();
-  readonly onDidChangeTreeData =
-    this._onDidChangeTreeData.event;
+  private _onDidChangeTreeData = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   refresh() {
     this._onDidChangeTreeData.fire();
@@ -16,27 +14,18 @@ export class CodeTreeProvider implements vscode.TreeDataProvider<TreeItem> {
 
   getChildren(): TreeItem[] {
     return [
-      new TreeItem(
-        "Explain Selected Code",
-        "experiment.openExplanation"
-      ),
-      new TreeItem(
-        "Show Execution Flow",
-        "experiment.openExplanation"
-      )
+      new TreeItem("Explain Selected Code", "experiment.showSelectedCode"),
+      new TreeItem("Show Execution Flow", "experiment.showSelectedCode"),
     ];
   }
 }
 
 class TreeItem extends vscode.TreeItem {
-  constructor(
-    label: string,
-    commandName: string
-  ) {
+  constructor(label: string, commandName: string) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.command = {
       command: commandName,
-      title: label
+      title: label,
     };
   }
 }

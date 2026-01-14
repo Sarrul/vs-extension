@@ -1,19 +1,20 @@
 {
   "name": "experiment",
   "displayName": "experiment",
-  "description": "simple code extension for showing selected code",
+  "description": "Visualize TypeScript call graphs and code structure using Mermaid diagrams",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.107.0"
   },
-  "categories": ["Other"],
-
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
   "activationEvents": [
+    "onView:codeTree",
     "onCommand:experiment.showSelectedCode"
   ],
-
   "main": "./out/extension.js",
-
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -24,7 +25,6 @@
         }
       ]
     },
-
     "views": {
       "experimentSidebar": [
         {
@@ -33,14 +33,12 @@
         }
       ]
     },
-
     "commands": [
       {
         "command": "experiment.showSelectedCode",
         "title": "Show Selected Code"
       }
     ],
-
     "keybindings": [
       {
         "command": "experiment.showSelectedCode",
@@ -49,7 +47,6 @@
       }
     ]
   },
-
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -58,7 +55,6 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
-
   "devDependencies": {
     "@types/vscode": "^1.107.0",
     "@types/mocha": "^10.0.10",
