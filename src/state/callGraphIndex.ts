@@ -1,6 +1,7 @@
 export interface CallEdge {
   callerId: string;
   callerName: string;
+  calleeId?: string; // ← ЭНИЙГ НЭМ
   calleeName: string;
   filePath: string;
   line: number;
