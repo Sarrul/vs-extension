@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
+import { fileIndex } from "../../state/fileIndex";
 import { ScannedFile } from "./workspaceScanner";
-import { fileIndex } from "../state/fileIndex";
 
 export async function loadWorkspaceFileContents(files: ScannedFile[]) {
   fileIndex.clear();

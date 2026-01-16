@@ -1,24 +1,24 @@
 import * as vscode from "vscode";
 import { CodeTreeProvider } from "./providers/CodeTreeProvider";
 import { CodeWebviewProvider } from "./providers/CodeWebviewProvider";
-import { extractCallGraph } from "./analyzers/callGraphAnalyzer";
-import { callGraphToMermaid } from "./analyzers/mermaidGenerator";
-import { scanWorkspaceFiles } from "./analyzers/workspaceScanner";
-import { loadWorkspaceFileContents } from "./analyzers/fileContentLoader";
+import { scanWorkspaceFiles } from "./analyzers/core/workspaceScanner";
 import { fileIndex } from "./state/fileIndex";
-import { analyzeFunctionBoundaries } from "./analyzers/functionBoundaryAnalyzer";
 import { functionIndex } from "./state/functionIndex";
-import { mapErrorsToFunctions } from "./analyzers/errorFunctionMapper";
-import { analyzeFunctionCalls } from "./analyzers/functionCallAnalyzer";
-import { buildCallerChain } from "./analyzers/executionChainBuilder";
-import { analyzeRuntimeTriggers } from "./analyzers/runtimeTriggerAnalyzer";
 import { triggerIndex } from "./state/triggerIndex";
-import { buildExecutionMermaid } from "./analyzers/executionMermaidBuilder";
+import { buildExecutionMermaid } from "./analyzers/debug/executionMermaidBuilder";
+import { loadWorkspaceFileContents } from "./analyzers/core/fileContentLoader";
+import { analyzeFunctionBoundaries } from "./analyzers/core/functionBoundaryAnalyzer";
+import { analyzeFunctionCalls } from "./analyzers/core/functionCallAnalyzer";
+import { analyzeRuntimeTriggers } from "./analyzers/runtime/runtimeTriggerAnalyzer";
+import { mapErrorsToFunctions } from "./analyzers/debug/errorFunctionMapper";
+import { buildCallerChain } from "./analyzers/debug/executionChainBuilder";
+import { buildRoadmapMermaid } from "./roadmap/roadmapMermaidBuilder";
 
 export function activate(context: vscode.ExtensionContext) {
   const treeProvider = new CodeTreeProvider();
   vscode.window.registerTreeDataProvider("codeTree", treeProvider);
 
+  // show selected code command
   const disposable = vscode.commands.registerCommand(
     "experiment.showSelectedCode",
     async () => {
@@ -101,5 +101,31 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // show roadmap view command
+  const roadmapDisposable = vscode.commands.registerCommand(
+    "experiment.showRoadmap",
+    async () => {
+      const files = await scanWorkspaceFiles();
+      await loadWorkspaceFileContents(files);
+
+      analyzeFunctionBoundaries(fileIndex.getAll());
+      analyzeFunctionCalls(fileIndex.getAll());
+
+      const mermaidDiagram = buildRoadmapMermaid();
+
+      CodeWebviewProvider.show(context, {
+        summary: "Project Roadmap",
+        errorText: "N/A",
+        relevantCode: "N/A",
+        selectedCode: "N/A",
+        mermaidDiagram,
+      });
+    }
+  );
+
+  // show selected code command
   context.subscriptions.push(disposable);
+
+  // show roadmap view command
+  context.subscriptions.push(roadmapDisposable);
 }

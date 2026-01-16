@@ -12,7 +12,8 @@
   ],
   "activationEvents": [
     "onView:codeTree",
-    "onCommand:experiment.showSelectedCode"
+    "onCommand:experiment.showSelectedCode",
+    "onCommand:experiment.showRoadmap"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,6 +38,10 @@
       {
         "command": "experiment.showSelectedCode",
         "title": "Show Selected Code"
+      },
+      {
+        "command": "experiment.showRoadmap",
+        "title": "Show Project Roadmap"
       }
     ],
     "keybindings": [

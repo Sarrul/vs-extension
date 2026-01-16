@@ -1,6 +1,6 @@
 import { buildCallerChain } from "./executionChainBuilder";
-import { triggerIndex } from "../state/triggerIndex";
-import { functionIndex } from "../state/functionIndex";
+import { triggerIndex } from "../../state/triggerIndex";
+import { functionIndex } from "../../state/functionIndex";
 
 export function buildExecutionMermaid(
   filePath: string,

@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { FileRecord } from "../state/fileIndex";
-import { triggerIndex } from "../state/triggerIndex";
+import { triggerIndex } from "../../state/triggerIndex";
+import { FileRecord } from "../../state/fileIndex";
 
 const EVENT_PROPS = ["onClick", "onSubmit", "onChange", "onBlur", "onFocus"];
 

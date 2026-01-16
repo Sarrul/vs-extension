@@ -1,7 +1,7 @@
 import ts from "typescript";
-import { FileRecord } from "../state/fileIndex";
-import { functionIndex } from "../state/functionIndex";
-import { callGraphIndex } from "../state/callGraphIndex";
+import { functionIndex } from "../../state/functionIndex";
+import { callGraphIndex } from "../../state/callGraphIndex";
+import { FileRecord } from "../../state/fileIndex";
 
 export function analyzeFunctionCalls(files: FileRecord[]) {
   callGraphIndex.clear();
@@ -31,9 +31,14 @@ export function analyzeFunctionCalls(files: FileRecord[]) {
             calleeName = node.expression.name.text;
           }
 
+          const callee = functionIndex
+            .getAll()
+            .find((fn) => fn.name === calleeName && fn.filePath === file.path);
+
           callGraphIndex.add({
             callerId: caller.id,
             callerName: caller.name,
+            calleeId: callee?.id,
             calleeName,
             filePath: file.path,
             line,
