@@ -2,8 +2,13 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { fileIndex } from "../state/fileIndex";
-import { functionIndex } from "../state/functionIndex";
+import { functionIndex, FunctionRecord } from "../state/functionIndex";
 import { callGraphIndex } from "../state/callGraphIndex";
+import {
+  RoadmapData,
+  RoadmapFile,
+  RoadmapFunction,
+} from "../roadmap/roadmapModel";
 
 export class CodeWebviewProvider {
   static show(
@@ -53,23 +58,24 @@ export class CodeWebviewProvider {
     // Build roadmap data structure
     const roadmapData = this.buildRoadmapData();
 
-    // Build mermaid diagram
-    const mermaidDiagram = this.buildMermaidDiagram();
+    // Inject data as a proper JSON script tag
+    const dataScript = `<script>window.ROADMAP_DATA = ${JSON.stringify(roadmapData)};</script>`;
 
-    html = html
-      .replace("{{ROADMAP_DATA}}", JSON.stringify(roadmapData))
-      .replace("{{MERMAID}}", this.escape(mermaidDiagram));
+    // Insert script before closing </head> tag
+    html = html.replace("</head>", `${dataScript}\n</head>`);
 
     return html;
   }
 
-  private static buildRoadmapData() {
+  private static buildRoadmapData(): RoadmapData {
     const files = fileIndex.getAll();
-    const roadmapFiles = [];
+    const roadmapFiles: RoadmapFile[] = [];
+
+    console.log(`[buildRoadmapData] Processing ${files.length} files`);
 
     for (const file of files) {
       const fileName = file.path.split("/").pop() || file.path;
-      const functions = functionIndex
+      const functions: RoadmapFunction[] = functionIndex
         .getAll()
         .filter((fn) => fn.filePath === file.path)
         .map((fn) => {
@@ -80,6 +86,7 @@ export class CodeWebviewProvider {
 
           return {
             name: fn.name,
+            filePath: fn.filePath,
             emoji: this.getFunctionEmoji(fn.name),
             calls: calls,
             startLine: fn.startLine,
@@ -96,12 +103,18 @@ export class CodeWebviewProvider {
       }
     }
 
-    return {
+    const result: RoadmapData = {
       files: roadmapFiles,
       totalFiles: roadmapFiles.length,
       totalFunctions: functionIndex.getAll().length,
       totalConnections: callGraphIndex.getAll().length,
     };
+
+    console.log(
+      `[buildRoadmapData] Result: ${result.totalFiles} files, ${result.totalFunctions} functions`,
+    );
+
+    return result;
   }
 
   private static buildMermaidDiagram(): string {
@@ -109,14 +122,17 @@ export class CodeWebviewProvider {
     const added = new Set<string>();
     const files = fileIndex.getAll();
 
-    // Group functions by file
-    const fileGroups = new Map<string, any[]>();
+    // Group functions by file - properly typed
+    const fileGroups = new Map<string, FunctionRecord[]>();
 
     for (const fn of functionIndex.getAll()) {
       if (!fileGroups.has(fn.filePath)) {
         fileGroups.set(fn.filePath, []);
       }
-      fileGroups.get(fn.filePath)!.push(fn);
+      const group = fileGroups.get(fn.filePath);
+      if (group) {
+        group.push(fn);
+      }
     }
 
     // Create file nodes and function nodes
@@ -178,7 +194,7 @@ export class CodeWebviewProvider {
       .replace(/[^a-zA-Z0-9_]/g, "_")
       .replace(/_{2,}/g, "_")
       .replace(/^_|_$/g, "")
-      .substring(0, 50); // Limit length to avoid issues
+      .substring(0, 50);
   }
 
   private static getFunctionEmoji(name: string): string {
@@ -252,7 +268,13 @@ export class CodeWebviewProvider {
   private static getHtml(
     webview: vscode.Webview,
     context: vscode.ExtensionContext,
-    data: any,
+    data: {
+      summary: string;
+      errorText: string;
+      relevantCode: string;
+      selectedCode: string;
+      mermaidDiagram: string;
+    },
   ): string {
     const htmlPath = path.join(
       context.extensionPath,
@@ -273,7 +295,7 @@ export class CodeWebviewProvider {
     return html;
   }
 
-  private static escape(text: string) {
+  private static escape(text: string): string {
     return text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")

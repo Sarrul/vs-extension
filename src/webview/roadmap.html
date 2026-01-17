@@ -2,378 +2,542 @@
 <html>
   <head>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
       body {
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-          Cantarell, sans-serif;
-        padding: 0;
-        margin: 0;
-        background: #1e1e1e;
-        color: #d4d4d4;
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #0a0a0a;
+        color: #e0e0e0;
+        overflow: hidden;
       }
 
       .container {
-        display: flex;
         height: 100vh;
-      }
-
-      .sidebar {
-        width: 300px;
-        background: #252526;
-        border-right: 1px solid #3e3e42;
-        overflow-y: auto;
-        padding: 16px;
-      }
-
-      .main-content {
-        flex: 1;
-        padding: 24px;
-        overflow-y: auto;
-      }
-
-      .file-tree {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-
-      .file-item {
-        margin: 4px 0;
-      }
-
-      .file-header {
-        padding: 8px 12px;
-        cursor: pointer;
-        border-radius: 4px;
         display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: background 0.2s;
-      }
-
-      .file-header:hover {
-        background: #2a2d2e;
-      }
-
-      .file-header.active {
-        background: #094771;
-        color: #fff;
-      }
-
-      .file-icon {
-        font-size: 16px;
-      }
-
-      .file-name {
-        flex: 1;
-        font-size: 13px;
-        font-weight: 500;
-      }
-
-      .expand-icon {
-        font-size: 12px;
-        transition: transform 0.2s;
-      }
-
-      .expand-icon.expanded {
-        transform: rotate(90deg);
-      }
-
-      .function-list {
-        list-style: none;
-        padding-left: 24px;
-        margin: 4px 0;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-out;
-      }
-
-      .function-list.expanded {
-        max-height: 1000px;
-      }
-
-      .function-item {
-        padding: 6px 12px;
-        margin: 2px 0;
-        border-radius: 4px;
-        font-size: 12px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: background 0.2s;
-      }
-
-      .function-item:hover {
-        background: #2a2d2e;
-      }
-
-      .function-emoji {
-        font-size: 14px;
-      }
-
-      .diagram-container {
-        background: #ffffff;
-        border-radius: 8px;
-        padding: 24px;
-        min-height: 400px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        flex-direction: column;
       }
 
       .header {
-        margin-bottom: 24px;
+        background: #1a1a1a;
+        padding: 16px 24px;
+        border-bottom: 1px solid #333;
+        z-index: 10;
       }
 
       .header h1 {
-        margin: 0 0 8px 0;
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 600;
-        color: #e0e0e0;
-      }
-
-      .header p {
-        margin: 0;
-        color: #888;
-        font-size: 14px;
+        margin-bottom: 8px;
       }
 
       .stats {
         display: flex;
         gap: 24px;
-        margin-bottom: 24px;
-      }
-
-      .stat-card {
-        background: #2d2d30;
-        padding: 16px;
-        border-radius: 6px;
-        border: 1px solid #3e3e42;
-        flex: 1;
-      }
-
-      .stat-label {
         font-size: 12px;
         color: #888;
-        margin-bottom: 4px;
       }
 
-      .stat-value {
-        font-size: 24px;
-        font-weight: 600;
+      .stat span {
         color: #4ec9b0;
+        font-weight: 600;
+        margin-left: 4px;
       }
 
-      .search-box {
-        width: 100%;
-        padding: 8px 12px;
-        background: #3c3c3c;
-        border: 1px solid #3e3e42;
-        border-radius: 4px;
-        color: #d4d4d4;
-        font-size: 13px;
-        margin-bottom: 16px;
+      .canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: auto;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%);
       }
 
-      .search-box:focus {
-        outline: none;
-        border-color: #007acc;
+      .diagram {
+        min-width: 100%;
+        min-height: 100%;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 60px;
       }
 
-      .badge {
-        display: inline-block;
-        padding: 2px 8px;
+      .layer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .layer-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+      }
+
+      .layer-content {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+        max-width: 1400px;
+      }
+
+      .file-card {
+        background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+        border: 2px solid;
         border-radius: 12px;
+        padding: 20px;
+        min-width: 200px;
+        max-width: 300px;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+      }
+
+      .file-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      .file-card.component {
+        border-color: #3b82f6;
+        background: linear-gradient(135deg, #1e2a3a 0%, #2a3a4a 100%);
+      }
+
+      .file-card.api {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #1e3a2a 0%, #2a4a3a 100%);
+      }
+
+      .file-card.hook {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #2a1e3a 0%, #3a2a4a 100%);
+      }
+
+      .file-card.util {
+        border-color: #f59e0b;
+        background: linear-gradient(135deg, #3a2a1e 0%, #4a3a2a 100%);
+      }
+
+      .file-card.other {
+        border-color: #6b7280;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+      }
+
+      .file-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+      }
+
+      .file-name {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #fff;
+      }
+
+      .file-stats {
         font-size: 11px;
-        font-weight: 500;
-        margin-left: 8px;
+        color: #888;
+        margin-bottom: 12px;
       }
 
-      .badge.calls {
-        background: #1e3a8a;
-        color: #93c5fd;
+      .functions-list {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
       }
 
-      .badge.called-by {
-        background: #166534;
-        color: #86efac;
+      .file-card.expanded .functions-list {
+        max-height: 500px;
+      }
+
+      .function-item {
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        margin-top: 8px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .function-icon {
+        font-size: 14px;
+      }
+
+      .expand-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #fff;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+
+      .expand-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .connections {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .legend {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: rgba(26, 26, 26, 0.95);
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 11px;
+      }
+
+      .legend-title {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #fff;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 2px solid;
+      }
+
+      .zoom-controls {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        gap: 8px;
+        background: rgba(26, 26, 26, 0.95);
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 8px;
+      }
+
+      .zoom-btn {
+        width: 36px;
+        height: 36px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.2s;
+      }
+
+      .zoom-btn:hover {
+        background: #3a3a3a;
+        border-color: #0e639c;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px;
+        color: #666;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <!-- Sidebar with file tree -->
-      <div class="sidebar">
-        <input
-          type="text"
-          class="search-box"
-          placeholder="Search files and functions..."
-          id="searchBox"
-        />
-        <ul class="file-tree" id="fileTree"></ul>
+      <div class="header">
+        <h1>📐 Project Architecture</h1>
+        <div class="stats">
+          <div class="stat">Files: <span id="fileCount">0</span></div>
+          <div class="stat">Functions: <span id="functionCount">0</span></div>
+          <div class="stat">Layers: <span id="layerCount">0</span></div>
+        </div>
       </div>
 
-      <!-- Main content area -->
-      <div class="main-content">
-        <div class="header">
-          <h1>📊 Project Roadmap</h1>
-          <p>Visual structure of your codebase</p>
-        </div>
+      <div class="canvas-container" id="canvas">
+        <div class="diagram" id="diagram"></div>
+      </div>
 
-        <div class="stats">
-          <div class="stat-card">
-            <div class="stat-label">Total Files</div>
-            <div class="stat-value" id="fileCount">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Total Functions</div>
-            <div class="stat-value" id="functionCount">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Connections</div>
-            <div class="stat-value" id="connectionCount">0</div>
-          </div>
+      <div class="legend">
+        <div class="legend-title">File Types</div>
+        <div class="legend-item">
+          <div
+            class="legend-color"
+            style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.2)"
+          ></div>
+          <span>UI Components</span>
         </div>
+        <div class="legend-item">
+          <div
+            class="legend-color"
+            style="border-color: #10b981; background: rgba(16, 185, 129, 0.2)"
+          ></div>
+          <span>API / Routes</span>
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-color"
+            style="border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2)"
+          ></div>
+          <span>React Hooks</span>
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-color"
+            style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.2)"
+          ></div>
+          <span>Utilities</span>
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-color"
+            style="border-color: #6b7280; background: rgba(107, 114, 128, 0.2)"
+          ></div>
+          <span>Other</span>
+        </div>
+      </div>
 
-        <div class="diagram-container">
-          <pre class="mermaid" id="mermaidDiagram">
-{{MERMAID}}
-          </pre>
-        </div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomIn">+</button>
+        <button class="zoom-btn" id="zoomOut">−</button>
+        <button class="zoom-btn" id="zoomReset">⊙</button>
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>
-      mermaid.initialize({
-        startOnLoad: true,
-        theme: "default",
-        themeVariables: {
-          primaryColor: "#4a5568",
-          primaryTextColor: "#fff",
-          primaryBorderColor: "#2d3748",
-          lineColor: "#718096",
-          secondaryColor: "#2d3748",
-          tertiaryColor: "#1a202c",
-        },
-      });
+      // Get data
+      let roadmapData = window.ROADMAP_DATA || { files: [] };
+      console.log("Roadmap data:", roadmapData);
 
-      // Parse roadmap data - will be injected by the extension
-      const roadmapDataString = "{{ROADMAP_DATA}}";
-      let roadmapData = null;
-
-      try {
-        roadmapData = JSON.parse(roadmapDataString);
-      } catch (e) {
-        console.error("Failed to parse roadmap data:", e);
-        roadmapData = {
-          files: [],
-          totalFiles: 0,
-          totalFunctions: 0,
-          totalConnections: 0,
-        };
+      function getFileType(fileName) {
+        const lower = fileName.toLowerCase();
+        if (
+          lower.includes("page") ||
+          lower.includes("component") ||
+          lower.endsWith(".tsx") ||
+          lower.endsWith(".jsx")
+        ) {
+          return "component";
+        }
+        if (
+          lower.includes("api") ||
+          lower.includes("route") ||
+          lower.includes("webhook")
+        ) {
+          return "api";
+        }
+        if (lower.startsWith("use") || lower.includes("hook")) {
+          return "hook";
+        }
+        if (
+          lower.includes("util") ||
+          lower.includes("helper") ||
+          lower.includes("lib")
+        ) {
+          return "util";
+        }
+        return "other";
       }
 
-      function renderFileTree(data) {
-        const fileTree = document.getElementById("fileTree");
-        if (!fileTree) return;
+      function getFunctionIcon(name) {
+        const lower = name.toLowerCase();
+        if (lower.startsWith("use")) return "🪝";
+        if (lower.startsWith("handle")) return "🎯";
+        if (lower.includes("fetch") || lower.includes("api")) return "📡";
+        if (lower.includes("render")) return "🎨";
+        return "⚡";
+      }
 
-        fileTree.innerHTML = "";
+      function getFileIcon(type) {
+        const icons = {
+          component: "🎨",
+          api: "🌐",
+          hook: "🪝",
+          util: "🔧",
+          other: "📄",
+        };
+        return icons[type] || "📄";
+      }
+
+      // Organize files into layers
+      function organizeIntoLayers(files) {
+        const layers = {
+          "UI Components": [],
+          "API & Routes": [],
+          "React Hooks": [],
+          Utilities: [],
+          Other: [],
+        };
+
+        files.forEach((file) => {
+          const type = getFileType(file.name);
+
+          if (type === "component") {
+            layers["UI Components"].push(file);
+          } else if (type === "api") {
+            layers["API & Routes"].push(file);
+          } else if (type === "hook") {
+            layers["React Hooks"].push(file);
+          } else if (type === "util") {
+            layers["Utilities"].push(file);
+          } else {
+            layers["Other"].push(file);
+          }
+        });
+
+        // Remove empty layers
+        Object.keys(layers).forEach((key) => {
+          if (layers[key].length === 0) {
+            delete layers[key];
+          }
+        });
+
+        return layers;
+      }
+
+      function renderDiagram(data) {
+        const diagram = document.getElementById("diagram");
+        diagram.innerHTML = "";
 
         if (!data || !data.files || data.files.length === 0) {
-          fileTree.innerHTML =
-            '<li style="padding: 12px; color: #888;">No files found</li>';
+          diagram.innerHTML =
+            '<div class="empty-state"><h3>No files found</h3><p>Make sure you have TypeScript files in your workspace</p></div>';
           return;
         }
 
-        let totalFunctions = 0;
-        let totalConnections = 0;
-
-        data.files.forEach((file) => {
-          const li = document.createElement("li");
-          li.className = "file-item";
-
-          const header = document.createElement("div");
-          header.className = "file-header";
-          header.innerHTML = `
-            <span class="expand-icon">▶</span>
-            <span class="file-icon">📄</span>
-            <span class="file-name">${escapeHtml(file.name)}</span>
-            <span class="badge calls">${file.functions.length}</span>
-          `;
-
-          const functionList = document.createElement("ul");
-          functionList.className = "function-list";
-
-          file.functions.forEach((fn) => {
-            totalFunctions++;
-            totalConnections += fn.calls?.length || 0;
-
-            const fnLi = document.createElement("li");
-            fnLi.className = "function-item";
-            fnLi.innerHTML = `
-              <span class="function-emoji">${fn.emoji || "⚡"}</span>
-              <span>${escapeHtml(fn.name)}</span>
-              ${fn.calls?.length ? `<span class="badge calls">${fn.calls.length}</span>` : ""}
-            `;
-            functionList.appendChild(fnLi);
-          });
-
-          header.addEventListener("click", () => {
-            const expanded = functionList.classList.toggle("expanded");
-            header.querySelector(".expand-icon").classList.toggle("expanded");
-            header.classList.toggle("active");
-          });
-
-          li.appendChild(header);
-          li.appendChild(functionList);
-          fileTree.appendChild(li);
-        });
+        const layers = organizeIntoLayers(data.files);
+        const layerNames = Object.keys(layers);
 
         // Update stats
-        const fileCountEl = document.getElementById("fileCount");
-        const functionCountEl = document.getElementById("functionCount");
-        const connectionCountEl = document.getElementById("connectionCount");
+        document.getElementById("fileCount").textContent = data.files.length;
+        document.getElementById("functionCount").textContent =
+          data.files.reduce((sum, f) => sum + f.functions.length, 0);
+        document.getElementById("layerCount").textContent = layerNames.length;
 
-        if (fileCountEl) fileCountEl.textContent = data.files.length.toString();
-        if (functionCountEl)
-          functionCountEl.textContent = totalFunctions.toString();
-        if (connectionCountEl)
-          connectionCountEl.textContent = totalConnections.toString();
-      }
+        // Render each layer
+        layerNames.forEach((layerName, layerIndex) => {
+          const layerDiv = document.createElement("div");
+          layerDiv.className = "layer";
 
-      // Helper function to escape HTML
-      function escapeHtml(text) {
-        const div = document.createElement("div");
-        div.textContent = text;
-        return div.innerHTML;
-      }
+          const title = document.createElement("div");
+          title.className = "layer-title";
+          title.textContent = layerName;
+          layerDiv.appendChild(title);
 
-      // Search functionality
-      const searchBox = document.getElementById("searchBox");
-      if (searchBox) {
-        searchBox.addEventListener("input", (e) => {
-          const query = e.target.value.toLowerCase();
-          const fileItems = document.querySelectorAll(".file-item");
+          const content = document.createElement("div");
+          content.className = "layer-content";
 
-          fileItems.forEach((item) => {
-            const text = item.textContent.toLowerCase();
-            item.style.display = text.includes(query) ? "block" : "none";
+          layers[layerName].forEach((file) => {
+            const type = getFileType(file.name);
+            const card = document.createElement("div");
+            card.className = `file-card ${type}`;
+
+            const expandBtn = document.createElement("button");
+            expandBtn.className = "expand-btn";
+            expandBtn.textContent = "▼";
+            expandBtn.onclick = (e) => {
+              e.stopPropagation();
+              card.classList.toggle("expanded");
+              expandBtn.textContent = card.classList.contains("expanded")
+                ? "▲"
+                : "▼";
+            };
+
+            card.innerHTML = `
+              <div class="file-icon">${getFileIcon(type)}</div>
+              <div class="file-name">${file.name}</div>
+              <div class="file-stats">${file.functions.length} functions</div>
+              <div class="functions-list">
+                ${file.functions
+                  .map(
+                    (fn) => `
+                  <div class="function-item">
+                    <span class="function-icon">${getFunctionIcon(fn.name)}</span>
+                    <span>${fn.name}</span>
+                  </div>
+                `,
+                  )
+                  .join("")}
+              </div>
+            `;
+
+            card.insertBefore(expandBtn, card.firstChild);
+            content.appendChild(card);
           });
+
+          layerDiv.appendChild(content);
+          diagram.appendChild(layerDiv);
         });
       }
 
-      // Initialize when DOM is ready
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => {
-          if (roadmapData) {
-            renderFileTree(roadmapData);
+      // Zoom controls
+      let zoomLevel = 1;
+      const canvas = document.getElementById("canvas");
+
+      document.getElementById("zoomIn").onclick = () => {
+        zoomLevel = Math.min(zoomLevel + 0.2, 2);
+        document.getElementById("diagram").style.transform =
+          `scale(${zoomLevel})`;
+      };
+
+      document.getElementById("zoomOut").onclick = () => {
+        zoomLevel = Math.max(zoomLevel - 0.2, 0.5);
+        document.getElementById("diagram").style.transform =
+          `scale(${zoomLevel})`;
+      };
+
+      document.getElementById("zoomReset").onclick = () => {
+        zoomLevel = 1;
+        document.getElementById("diagram").style.transform = "scale(1)";
+        canvas.scrollTop = 0;
+        canvas.scrollLeft = 0;
+      };
+
+      // Mouse wheel zoom
+      canvas.addEventListener("wheel", (e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          if (e.deltaY < 0) {
+            zoomLevel = Math.min(zoomLevel + 0.1, 2);
+          } else {
+            zoomLevel = Math.max(zoomLevel - 0.1, 0.5);
           }
-        });
-      } else {
-        if (roadmapData) {
-          renderFileTree(roadmapData);
+          document.getElementById("diagram").style.transform =
+            `scale(${zoomLevel})`;
         }
-      }
+      });
+
+      // Initialize
+      renderDiagram(roadmapData);
     </script>
   </body>
 </html>
