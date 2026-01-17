@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { functionIndex } from "../state/functionIndex";
+import { functionIndex } from "../../state/functionIndex";
 
 export interface MappedError {
   filePath: string;

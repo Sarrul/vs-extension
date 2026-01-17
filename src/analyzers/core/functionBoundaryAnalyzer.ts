@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import { functionIndex } from "../state/functionIndex";
+import { functionIndex } from "../../state/functionIndex";
 
 export function analyzeFunctionBoundaries(
   files: { path: string; text: string }[]

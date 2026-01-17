@@ -1,4 +1,4 @@
-import { callGraphIndex } from "../state/callGraphIndex";
+import { callGraphIndex } from "../../state/callGraphIndex";
 
 export function buildCallerChain(
   targetFunctionName: string,
