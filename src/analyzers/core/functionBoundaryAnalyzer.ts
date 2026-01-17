@@ -43,13 +43,13 @@ export function analyzeFunctionBoundaries(
     }
 
     function visit(node: ts.Node) {
-      // function Home() {}
+      // 1. function Home() {}
       if (ts.isFunctionDeclaration(node) && node.name) {
         registerFunction(node.name.text, node);
         return;
       }
 
-      // const handleSubmitt = async () => {}
+      // 2. const handleSubmit = async () => {}
       if (
         ts.isVariableDeclaration(node) &&
         node.initializer &&
@@ -59,6 +59,46 @@ export function analyzeFunctionBoundaries(
       ) {
         registerFunction(node.name.text, node.initializer);
         return;
+      }
+
+      // 3. Method declarations: class methods
+      if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) {
+        registerFunction(node.name.text, node);
+        return;
+      }
+
+      // 4. Object literal methods: { handleClick() {} }
+      if (
+        ts.isMethodDeclaration(node) ||
+        ts.isShorthandPropertyAssignment(node)
+      ) {
+        if (ts.isIdentifier(node.name)) {
+          registerFunction(node.name.text, node);
+          return;
+        }
+      }
+
+      // 5. Property assignments with functions: obj.method = function() {}
+      if (
+        ts.isPropertyAssignment(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer &&
+        (ts.isArrowFunction(node.initializer) ||
+          ts.isFunctionExpression(node.initializer))
+      ) {
+        registerFunction(node.name.text, node.initializer);
+        return;
+      }
+
+      // 6. Export const/function patterns
+      if (ts.isExportAssignment(node) && node.expression) {
+        if (
+          ts.isFunctionExpression(node.expression) ||
+          ts.isArrowFunction(node.expression)
+        ) {
+          registerFunction("default", node.expression);
+          return;
+        }
       }
 
       ts.forEachChild(node, visit);
