@@ -5,6 +5,7 @@ import { RoadmapFile } from "./roadmapModel";
 
 export function buildRoadmap(): RoadmapFile[] {
   return fileIndex.getAll().map((file) => {
+    const fileName = file.path.split("/").pop() || file.path;
     const functions = functionIndex
       .getAll()
       .filter((fn) => fn.filePath === file.path)
@@ -12,12 +13,14 @@ export function buildRoadmap(): RoadmapFile[] {
         name: fn.name,
         filePath: fn.filePath,
         calls: callGraphIndex
-          .getCallersOf(fn.name, fn.filePath)
-          .map((c) => c.calleeName),
+          .getAll()
+          .filter((edge) => edge.callerId === fn.id)
+          .map((edge) => edge.calleeName),
       }));
 
     return {
       path: file.path,
+      name: fileName,
       functions,
     };
   });

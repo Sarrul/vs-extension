@@ -1,0 +1,379 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        padding: 0;
+        margin: 0;
+        background: #1e1e1e;
+        color: #d4d4d4;
+      }
+
+      .container {
+        display: flex;
+        height: 100vh;
+      }
+
+      .sidebar {
+        width: 300px;
+        background: #252526;
+        border-right: 1px solid #3e3e42;
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      .main-content {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+      }
+
+      .file-tree {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .file-item {
+        margin: 4px 0;
+      }
+
+      .file-header {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+      }
+
+      .file-header:hover {
+        background: #2a2d2e;
+      }
+
+      .file-header.active {
+        background: #094771;
+        color: #fff;
+      }
+
+      .file-icon {
+        font-size: 16px;
+      }
+
+      .file-name {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .expand-icon {
+        font-size: 12px;
+        transition: transform 0.2s;
+      }
+
+      .expand-icon.expanded {
+        transform: rotate(90deg);
+      }
+
+      .function-list {
+        list-style: none;
+        padding-left: 24px;
+        margin: 4px 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+
+      .function-list.expanded {
+        max-height: 1000px;
+      }
+
+      .function-item {
+        padding: 6px 12px;
+        margin: 2px 0;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.2s;
+      }
+
+      .function-item:hover {
+        background: #2a2d2e;
+      }
+
+      .function-emoji {
+        font-size: 14px;
+      }
+
+      .diagram-container {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 24px;
+        min-height: 400px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .header {
+        margin-bottom: 24px;
+      }
+
+      .header h1 {
+        margin: 0 0 8px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #e0e0e0;
+      }
+
+      .header p {
+        margin: 0;
+        color: #888;
+        font-size: 14px;
+      }
+
+      .stats {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+
+      .stat-card {
+        background: #2d2d30;
+        padding: 16px;
+        border-radius: 6px;
+        border: 1px solid #3e3e42;
+        flex: 1;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #4ec9b0;
+      }
+
+      .search-box {
+        width: 100%;
+        padding: 8px 12px;
+        background: #3c3c3c;
+        border: 1px solid #3e3e42;
+        border-radius: 4px;
+        color: #d4d4d4;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      .search-box:focus {
+        outline: none;
+        border-color: #007acc;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+        margin-left: 8px;
+      }
+
+      .badge.calls {
+        background: #1e3a8a;
+        color: #93c5fd;
+      }
+
+      .badge.called-by {
+        background: #166534;
+        color: #86efac;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Sidebar with file tree -->
+      <div class="sidebar">
+        <input
+          type="text"
+          class="search-box"
+          placeholder="Search files and functions..."
+          id="searchBox"
+        />
+        <ul class="file-tree" id="fileTree"></ul>
+      </div>
+
+      <!-- Main content area -->
+      <div class="main-content">
+        <div class="header">
+          <h1>📊 Project Roadmap</h1>
+          <p>Visual structure of your codebase</p>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Total Files</div>
+            <div class="stat-value" id="fileCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Functions</div>
+            <div class="stat-value" id="functionCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Connections</div>
+            <div class="stat-value" id="connectionCount">0</div>
+          </div>
+        </div>
+
+        <div class="diagram-container">
+          <pre class="mermaid" id="mermaidDiagram">
+{{MERMAID}}
+          </pre>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        themeVariables: {
+          primaryColor: "#4a5568",
+          primaryTextColor: "#fff",
+          primaryBorderColor: "#2d3748",
+          lineColor: "#718096",
+          secondaryColor: "#2d3748",
+          tertiaryColor: "#1a202c",
+        },
+      });
+
+      // Parse roadmap data - will be injected by the extension
+      const roadmapDataString = "{{ROADMAP_DATA}}";
+      let roadmapData = null;
+
+      try {
+        roadmapData = JSON.parse(roadmapDataString);
+      } catch (e) {
+        console.error("Failed to parse roadmap data:", e);
+        roadmapData = {
+          files: [],
+          totalFiles: 0,
+          totalFunctions: 0,
+          totalConnections: 0,
+        };
+      }
+
+      function renderFileTree(data) {
+        const fileTree = document.getElementById("fileTree");
+        if (!fileTree) return;
+
+        fileTree.innerHTML = "";
+
+        if (!data || !data.files || data.files.length === 0) {
+          fileTree.innerHTML =
+            '<li style="padding: 12px; color: #888;">No files found</li>';
+          return;
+        }
+
+        let totalFunctions = 0;
+        let totalConnections = 0;
+
+        data.files.forEach((file) => {
+          const li = document.createElement("li");
+          li.className = "file-item";
+
+          const header = document.createElement("div");
+          header.className = "file-header";
+          header.innerHTML = `
+            <span class="expand-icon">▶</span>
+            <span class="file-icon">📄</span>
+            <span class="file-name">${escapeHtml(file.name)}</span>
+            <span class="badge calls">${file.functions.length}</span>
+          `;
+
+          const functionList = document.createElement("ul");
+          functionList.className = "function-list";
+
+          file.functions.forEach((fn) => {
+            totalFunctions++;
+            totalConnections += fn.calls?.length || 0;
+
+            const fnLi = document.createElement("li");
+            fnLi.className = "function-item";
+            fnLi.innerHTML = `
+              <span class="function-emoji">${fn.emoji || "⚡"}</span>
+              <span>${escapeHtml(fn.name)}</span>
+              ${fn.calls?.length ? `<span class="badge calls">${fn.calls.length}</span>` : ""}
+            `;
+            functionList.appendChild(fnLi);
+          });
+
+          header.addEventListener("click", () => {
+            const expanded = functionList.classList.toggle("expanded");
+            header.querySelector(".expand-icon").classList.toggle("expanded");
+            header.classList.toggle("active");
+          });
+
+          li.appendChild(header);
+          li.appendChild(functionList);
+          fileTree.appendChild(li);
+        });
+
+        // Update stats
+        const fileCountEl = document.getElementById("fileCount");
+        const functionCountEl = document.getElementById("functionCount");
+        const connectionCountEl = document.getElementById("connectionCount");
+
+        if (fileCountEl) fileCountEl.textContent = data.files.length.toString();
+        if (functionCountEl)
+          functionCountEl.textContent = totalFunctions.toString();
+        if (connectionCountEl)
+          connectionCountEl.textContent = totalConnections.toString();
+      }
+
+      // Helper function to escape HTML
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Search functionality
+      const searchBox = document.getElementById("searchBox");
+      if (searchBox) {
+        searchBox.addEventListener("input", (e) => {
+          const query = e.target.value.toLowerCase();
+          const fileItems = document.querySelectorAll(".file-item");
+
+          fileItems.forEach((item) => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(query) ? "block" : "none";
+          });
+        });
+      }
+
+      // Initialize when DOM is ready
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+          if (roadmapData) {
+            renderFileTree(roadmapData);
+          }
+        });
+      } else {
+        if (roadmapData) {
+          renderFileTree(roadmapData);
+        }
+      }
+    </script>
+  </body>
+</html>
