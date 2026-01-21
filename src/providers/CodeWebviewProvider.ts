@@ -19,13 +19,13 @@ export class CodeWebviewProvider {
       relevantCode: string;
       selectedCode: string;
       mermaidDiagram: string;
-    },
+    }
   ) {
     const panel = vscode.window.createWebviewPanel(
       "codeExplanation",
       "Filtered Prompt Preview",
       vscode.ViewColumn.Beside,
-      { enableScripts: true },
+      { enableScripts: true }
     );
 
     panel.webview.html = this.getHtml(panel.webview, context, data);
@@ -36,7 +36,7 @@ export class CodeWebviewProvider {
       "roadmapView",
       "📊 Project Roadmap",
       vscode.ViewColumn.Beside,
-      { enableScripts: true },
+      { enableScripts: true }
     );
 
     panel.webview.html = this.getRoadmapHtml(panel.webview, context);
@@ -44,13 +44,13 @@ export class CodeWebviewProvider {
 
   private static getRoadmapHtml(
     webview: vscode.Webview,
-    context: vscode.ExtensionContext,
+    context: vscode.ExtensionContext
   ): string {
     const htmlPath = path.join(
       context.extensionPath,
       "src",
       "webview",
-      "roadmap.html",
+      "roadmap.html"
     );
 
     let html = fs.readFileSync(htmlPath, "utf8");
@@ -58,8 +58,14 @@ export class CodeWebviewProvider {
     // Build roadmap data structure
     const roadmapData = this.buildRoadmapData();
 
+    console.log("📊 [getRoadmapHtml] Injecting data into HTML");
+    console.log(`  Total files: ${roadmapData.totalFiles}`);
+    console.log(`  Total functions: ${roadmapData.totalFunctions}`);
+
     // Inject data as a proper JSON script tag
-    const dataScript = `<script>window.ROADMAP_DATA = ${JSON.stringify(roadmapData)};</script>`;
+    const dataScript = `<script>window.ROADMAP_DATA = ${JSON.stringify(
+      roadmapData
+    )};</script>`;
 
     // Insert script before closing </head> tag
     html = html.replace("</head>", `${dataScript}\n</head>`);
@@ -68,133 +74,85 @@ export class CodeWebviewProvider {
   }
 
   private static buildRoadmapData(): RoadmapData {
+    console.log("🔨 [buildRoadmapData] Starting to build roadmap data...");
+
     const files = fileIndex.getAll();
+    const allFunctions = functionIndex.getAll();
+    const allEdges = callGraphIndex.getAll();
+
+    console.log(`  📁 Total files indexed: ${files.length}`);
+    console.log(`  ⚡ Total functions indexed: ${allFunctions.length}`);
+    console.log(`  🔗 Total call edges: ${allEdges.length}`);
+
     const roadmapFiles: RoadmapFile[] = [];
 
-    console.log(`[buildRoadmapData] Processing ${files.length} files`);
-
     for (const file of files) {
-      const fileName = file.path.split("/").pop() || file.path;
-      const functions: RoadmapFunction[] = functionIndex
-        .getAll()
-        .filter((fn) => fn.filePath === file.path)
-        .map((fn) => {
-          const calls = callGraphIndex
-            .getAll()
-            .filter((edge) => edge.callerId === fn.id)
-            .map((edge) => edge.calleeName);
+      const fileName = file.path.split(/[/\\]/).pop() || file.path;
 
-          return {
-            name: fn.name,
-            filePath: fn.filePath,
-            emoji: this.getFunctionEmoji(fn.name),
-            calls: calls,
-            startLine: fn.startLine,
-            endLine: fn.endLine,
-          };
-        });
+      // Get functions for this specific file
+      const fileFunctions = allFunctions.filter(
+        (fn) => fn.filePath === file.path
+      );
 
-      if (functions.length > 0) {
-        roadmapFiles.push({
-          name: fileName,
-          path: file.path,
-          functions: functions,
-        });
+      console.log(`  📄 ${fileName}: ${fileFunctions.length} functions`);
+
+      if (fileFunctions.length === 0) {
+        console.log(`    ⚠️  Skipping ${fileName} - no functions found`);
+        continue;
       }
+
+      const functions: RoadmapFunction[] = fileFunctions.map((fn) => {
+        // Get outgoing calls from this function
+        const calls = allEdges
+          .filter((edge) => edge.callerId === fn.id)
+          .map((edge) => edge.calleeName);
+
+        if (calls.length > 0) {
+          console.log(`    ⚡ ${fn.name}: calls [${calls.join(", ")}]`);
+        }
+
+        return {
+          name: fn.name,
+          filePath: fn.filePath,
+          emoji: this.getFunctionEmoji(fn.name),
+          calls: calls,
+          startLine: fn.startLine,
+          endLine: fn.endLine,
+        };
+      });
+
+      roadmapFiles.push({
+        name: fileName,
+        path: file.path,
+        functions: functions,
+      });
     }
 
     const result: RoadmapData = {
       files: roadmapFiles,
       totalFiles: roadmapFiles.length,
-      totalFunctions: functionIndex.getAll().length,
-      totalConnections: callGraphIndex.getAll().length,
+      totalFunctions: roadmapFiles.reduce(
+        (sum, f) => sum + f.functions.length,
+        0
+      ),
+      totalConnections: allEdges.length,
     };
 
-    console.log(
-      `[buildRoadmapData] Result: ${result.totalFiles} files, ${result.totalFunctions} functions`,
-    );
+    console.log("✅ [buildRoadmapData] Roadmap data built successfully:");
+    console.log(`  📁 Files with functions: ${result.totalFiles}`);
+    console.log(`  ⚡ Total functions: ${result.totalFunctions}`);
+    console.log(`  🔗 Total connections: ${result.totalConnections}`);
+
+    // Debug: Show first few files
+    roadmapFiles.slice(0, 3).forEach((file) => {
+      console.log(
+        `  Sample: ${file.name} - ${file.functions
+          .map((f) => f.name)
+          .join(", ")}`
+      );
+    });
 
     return result;
-  }
-
-  private static buildMermaidDiagram(): string {
-    let mermaid = "graph TD\n";
-    const added = new Set<string>();
-    const files = fileIndex.getAll();
-
-    // Group functions by file - properly typed
-    const fileGroups = new Map<string, FunctionRecord[]>();
-
-    for (const fn of functionIndex.getAll()) {
-      if (!fileGroups.has(fn.filePath)) {
-        fileGroups.set(fn.filePath, []);
-      }
-      const group = fileGroups.get(fn.filePath);
-      if (group) {
-        group.push(fn);
-      }
-    }
-
-    // Create file nodes and function nodes
-    for (const file of files) {
-      const fileName = file.path.split("/").pop() || file.path;
-      const fileId = `file_${this.sanitizeId(file.path)}`;
-
-      const funcs = fileGroups.get(file.path) || [];
-      if (funcs.length === 0) continue;
-
-      if (!added.has(fileId)) {
-        mermaid += `  ${fileId}["📁 ${fileName}"]\n`;
-        mermaid += `  style ${fileId} fill:#2d3748,stroke:#4a5568,stroke-width:2px\n`;
-        added.add(fileId);
-      }
-
-      for (const fn of funcs) {
-        const fnId = this.sanitizeId(fn.id);
-
-        if (!added.has(fnId)) {
-          const emoji = this.getFunctionEmoji(fn.name);
-          mermaid += `  ${fnId}["${emoji} ${fn.name}"]\n`;
-
-          const color = this.getFunctionColor(fn.name);
-          mermaid += `  style ${fnId} fill:${color}\n`;
-
-          added.add(fnId);
-        }
-
-        // Connect file to function
-        mermaid += `  ${fileId} -.-> ${fnId}\n`;
-      }
-    }
-
-    // Add call relationships
-    const edges = callGraphIndex.getAll();
-    const processedEdges = new Set<string>();
-
-    for (const edge of edges) {
-      if (!edge.calleeId) continue;
-
-      const fromId = this.sanitizeId(edge.callerId);
-      const toId = this.sanitizeId(edge.calleeId);
-      const edgeKey = `${fromId}_${toId}`;
-
-      if (processedEdges.has(edgeKey)) continue;
-      processedEdges.add(edgeKey);
-
-      if (added.has(fromId) && added.has(toId)) {
-        mermaid += `  ${fromId} --> ${toId}\n`;
-      }
-    }
-
-    return mermaid;
-  }
-
-  private static sanitizeId(id: string): string {
-    return id
-      .replace(/[^a-zA-Z0-9_]/g, "_")
-      .replace(/_{2,}/g, "_")
-      .replace(/^_|_$/g, "")
-      .substring(0, 50);
   }
 
   private static getFunctionEmoji(name: string): string {
@@ -274,13 +232,13 @@ export class CodeWebviewProvider {
       relevantCode: string;
       selectedCode: string;
       mermaidDiagram: string;
-    },
+    }
   ): string {
     const htmlPath = path.join(
       context.extensionPath,
       "src",
       "webview",
-      "index.html",
+      "index.html"
     );
 
     let html = fs.readFileSync(htmlPath, "utf8");
