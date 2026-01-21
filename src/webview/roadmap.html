@@ -72,7 +72,7 @@
         gap: 24px;
         flex-wrap: wrap;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         max-width: 1400px;
         animation: fadeIn 0.3s ease-out;
       }
@@ -161,6 +161,7 @@
         text-align: center;
         color: #fff;
         margin-bottom: 8px;
+        word-break: break-word;
       }
 
       .card-info {
@@ -284,6 +285,20 @@
           opacity: 1;
         }
       }
+
+      .debug-panel {
+        position: fixed;
+        top: 80px;
+        right: 24px;
+        background: #1a1a1a;
+        border: 1px solid #3a3a3a;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        color: #888;
+        max-width: 300px;
+        z-index: 5;
+      }
     </style>
   </head>
   <body>
@@ -304,19 +319,25 @@
       </button>
 
       <div class="hint" id="hint">Click on a folder or file to explore</div>
+
+      <!-- Debug panel (remove in production) -->
+      <div class="debug-panel" id="debugPanel" style="display: none">
+        <strong>Debug Info:</strong><br />
+        <div id="debugContent"></div>
+      </div>
     </div>
 
     <script>
       // Get data
       let roadmapData = window.ROADMAP_DATA || { files: [] };
-      console.log("Roadmap data:", roadmapData);
+      console.log("🗺️ [INIT] Roadmap data:", roadmapData);
 
       let currentPath = [];
       let hierarchyData = null;
 
       // Build folder hierarchy
       function buildHierarchy(files) {
-        console.log("[buildHierarchy] Starting with files:", files.length);
+        console.log("📊 [buildHierarchy] Starting with files:", files.length);
 
         const root = {
           name: "Root",
@@ -327,7 +348,7 @@
 
         // Find common base path
         const basePath = findBasePath(files);
-        console.log("[buildHierarchy] Base path:", basePath);
+        console.log("📁 [buildHierarchy] Base path:", basePath);
 
         files.forEach((file, index) => {
           let relativePath = file.path.replace(/\\/g, "/");
@@ -336,20 +357,20 @@
           }
 
           console.log(
-            `[buildHierarchy] Processing file ${index + 1}/${
+            `📄 [buildHierarchy] Processing ${index + 1}/${
               files.length
             }: ${relativePath}`
           );
 
-          const parts = relativePath.split("/");
+          const parts = relativePath.split("/").filter((p) => p); // Remove empty parts
           let current = root;
 
-          // Build folder structure
+          // Build folder structure (excluding the file itself)
           for (let i = 0; i < parts.length - 1; i++) {
             const folderName = parts[i];
 
             if (!current.children[folderName]) {
-              console.log(`[buildHierarchy] Creating folder: ${folderName}`);
+              console.log(`  📁 Creating folder: ${folderName}`);
               current.children[folderName] = {
                 name: folderName,
                 type: "folder",
@@ -360,9 +381,9 @@
             current = current.children[folderName];
           }
 
-          // Add file
+          // Add file to the deepest folder
           const fileName = parts[parts.length - 1];
-          console.log(`[buildHierarchy] Adding file to folder: ${fileName}`);
+          console.log(`  📄 Adding file: ${fileName} to folder`);
 
           current.files.push({
             name: fileName,
@@ -372,7 +393,7 @@
           });
         });
 
-        console.log("[buildHierarchy] Final hierarchy:", root);
+        console.log("✅ [buildHierarchy] Final hierarchy:", root);
         return root;
       }
 
@@ -398,75 +419,84 @@
 
       function getCurrentLevel() {
         let current = hierarchyData;
-        console.log("[getCurrentLevel] Starting at root, path:", currentPath);
+        console.log(
+          "🎯 [getCurrentLevel] Starting at root, path:",
+          currentPath
+        );
 
         for (const part of currentPath) {
-          console.log("[getCurrentLevel] Navigating into:", part);
-          console.log(
-            "[getCurrentLevel] Available children:",
-            Object.keys(current.children || {})
-          );
+          console.log("  🔍 Navigating into:", part);
 
           if (current.children && current.children[part]) {
             current = current.children[part];
-            console.log("[getCurrentLevel] Found:", part);
+            console.log("  ✅ Found:", part);
           } else {
-            console.error("[getCurrentLevel] Could not find:", part);
+            console.error("  ❌ Could not find:", part);
+            console.error(
+              "  Available children:",
+              Object.keys(current.children || {})
+            );
             return null;
           }
         }
 
-        console.log("[getCurrentLevel] Current level:", current);
+        console.log("✅ [getCurrentLevel] Current level:", current.name);
         console.log(
-          "[getCurrentLevel] Children:",
-          Object.keys(current.children || {})
+          "  📁 Subfolders:",
+          Object.keys(current.children || {}).length
         );
-        console.log("[getCurrentLevel] Files:", current.files?.length || 0);
+        console.log("  📄 Files:", (current.files || []).length);
 
         return current;
       }
 
       function renderLevel() {
-        console.log("[renderLevel] Rendering level for path:", currentPath);
+        console.log("🎨 [renderLevel] Rendering level for path:", currentPath);
 
         const container = document.getElementById("levelContainer");
         const level = getCurrentLevel();
 
         if (!level) {
-          console.error("[renderLevel] No level found!");
+          console.error("❌ [renderLevel] No level found!");
           container.innerHTML =
             '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Nothing here</h3></div>';
           return;
         }
 
-        console.log(
-          "[renderLevel] Level has",
-          Object.keys(level.children || {}).length,
-          "folders and",
-          (level.files || []).length,
-          "files"
+        const folders = Object.keys(level.children || {}).sort();
+        const files = (level.files || []).sort((a, b) =>
+          a.name.localeCompare(b.name)
         );
+
+        console.log(
+          `📊 [renderLevel] Found ${folders.length} folders and ${files.length} files`
+        );
+
+        // Update debug panel
+        updateDebugPanel({
+          folders: folders.length,
+          files: files.length,
+          level: level.name,
+        });
 
         container.innerHTML = "";
 
-        // Get all folders (sort alphabetically)
-        const folders = Object.keys(level.children || {}).sort();
-        console.log("[renderLevel] Rendering folders:", folders);
-
-        // Show ALL folders (even if empty)
+        // Render folders - ALWAYS show all folders, regardless of content
         folders.forEach((folderName) => {
           const folder = level.children[folderName];
           const folderCount = countItems(folder);
+          const totalItems = folderCount.folders + folderCount.files;
+
+          console.log(
+            `  📁 Rendering folder: ${folderName} (${totalItems} items)`
+          );
 
           const card = document.createElement("div");
           card.className = "card folder";
           card.onclick = () => navigateInto(folderName);
 
-          // Show total items in folder
-          const totalItems = folderCount.folders + folderCount.files;
-
           card.innerHTML = `
-            <div class="card-badge">${totalItems} items</div>
+            <div class="card-badge">${totalItems}</div>
             <div class="card-icon">📁</div>
             <div class="card-name">${folderName}</div>
             <div class="card-info">${folderCount.folders} folders · ${folderCount.files} files</div>
@@ -475,13 +505,12 @@
           container.appendChild(card);
         });
 
-        // Show files (sort alphabetically)
-        const files = (level.files || []).sort((a, b) =>
-          a.name.localeCompare(b.name)
-        );
-        console.log("[renderLevel] Rendering files:", files.length);
-
+        // Render files
         files.forEach((file) => {
+          console.log(
+            `  📄 Rendering file: ${file.name} (${file.functions.length} functions)`
+          );
+
           const card = document.createElement("div");
           card.className = "card file";
           card.onclick = () => showFileFunctions(file);
@@ -496,18 +525,16 @@
           container.appendChild(card);
         });
 
-        // Show message if empty
+        // Show empty state only if truly empty
         if (folders.length === 0 && files.length === 0) {
-          console.log("[renderLevel] Empty folder!");
+          console.log("📭 [renderLevel] Empty folder!");
           container.innerHTML =
             '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Empty folder</h3><p>No files or subfolders here</p></div>';
         }
 
-        // Update back button
-        const backBtn = document.getElementById("backButton");
-        backBtn.style.display = currentPath.length > 0 ? "flex" : "none";
-
-        // Update breadcrumb
+        // Update UI elements
+        document.getElementById("backButton").style.display =
+          currentPath.length > 0 ? "flex" : "none";
         updateBreadcrumb();
 
         // Hide hint after first interaction
@@ -520,6 +547,7 @@
         let folders = Object.keys(node.children || {}).length;
         let files = (node.files || []).length;
 
+        // Recursively count nested items
         Object.values(node.children || {}).forEach((child) => {
           const counts = countItems(child);
           folders += counts.folders;
@@ -530,18 +558,21 @@
       }
 
       function navigateInto(folderName) {
+        console.log("🚀 [navigateInto] Navigating to:", folderName);
         currentPath.push(folderName);
         renderLevel();
       }
 
       function navigateBack() {
         if (currentPath.length > 0) {
-          currentPath.pop();
+          const popped = currentPath.pop();
+          console.log("⬅️ [navigateBack] Going back from:", popped);
           renderLevel();
         }
       }
 
       function navigateTo(path) {
+        console.log("🎯 [navigateTo] Jumping to path:", path);
         currentPath = path;
         renderLevel();
       }
@@ -562,7 +593,27 @@
         breadcrumb.innerHTML = html;
       }
 
+      function updateDebugPanel(info) {
+        const panel = document.getElementById("debugPanel");
+        const content = document.getElementById("debugContent");
+
+        content.innerHTML = `
+          Level: ${info.level}<br>
+          Folders: ${info.folders}<br>
+          Files: ${info.files}<br>
+          Path: ${currentPath.join("/") || "root"}
+        `;
+
+        // Auto-hide after 5 seconds
+        panel.style.display = "block";
+        setTimeout(() => {
+          panel.style.display = "none";
+        }, 5000);
+      }
+
       function showFileFunctions(file) {
+        console.log("📄 [showFileFunctions] Showing functions for:", file.name);
+
         const container = document.getElementById("levelContainer");
         container.innerHTML = "";
 
@@ -609,25 +660,26 @@
         if (lower.startsWith("handle")) return "🎯";
         if (lower.includes("fetch") || lower.includes("api")) return "📡";
         if (lower.includes("render")) return "🎨";
+        if (lower.includes("analyze") || lower.includes("build")) return "⚙️";
         return "⚡";
       }
 
-      // Back button
+      // Back button handler
       document.getElementById("backButton").onclick = navigateBack;
 
       // Initialize
+      console.log("🚀 [INIT] Starting initialization...");
+
       if (roadmapData && roadmapData.files && roadmapData.files.length > 0) {
+        console.log(`✅ [INIT] Found ${roadmapData.files.length} files`);
+
         hierarchyData = buildHierarchy(roadmapData.files);
-        console.log("Hierarchy:", hierarchyData);
+        console.log("✅ [INIT] Hierarchy built successfully");
 
-        // Start at first folder level (skip root if it only has one child)
-        const rootChildren = Object.keys(hierarchyData.children || {});
-        if (rootChildren.length === 1) {
-          currentPath = [rootChildren[0]];
-        }
-
+        // Don't auto-navigate into first folder - stay at root
         renderLevel();
       } else {
+        console.error("❌ [INIT] No files found in roadmap data");
         document.getElementById("levelContainer").innerHTML =
           '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>No files found</h3><p>Make sure you have TypeScript files in your workspace</p></div>';
       }

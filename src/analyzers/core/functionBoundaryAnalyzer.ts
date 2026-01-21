@@ -6,7 +6,11 @@ export function analyzeFunctionBoundaries(
 ) {
   functionIndex.clear();
 
+  console.log("🔍 [analyzeFunctionBoundaries] Starting analysis...");
+
   for (const file of files) {
+    console.log(`📄 [analyzeFunctionBoundaries] Analyzing: ${file.path}`);
+
     const sourceFile = ts.createSourceFile(
       file.path,
       file.text,
@@ -17,6 +21,12 @@ export function analyzeFunctionBoundaries(
     const functionStack: string[] = [];
 
     function registerFunction(name: string, node: ts.Node) {
+      // Skip empty or invalid names
+      if (!name || name.trim() === "") {
+        console.warn(`⚠️ Skipping function with empty name at ${file.path}`);
+        return;
+      }
+
       const parentFunction =
         functionStack.length > 0
           ? functionStack[functionStack.length - 1]
@@ -28,28 +38,37 @@ export function analyzeFunctionBoundaries(
       const endLine =
         sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
 
-      functionIndex.add({
+      const functionRecord = {
         id: `${file.path}:${name}:${startLine}`,
         name,
         filePath: file.path,
         startLine,
         endLine,
         parentFunction,
-      });
+      };
 
+      console.log(
+        `✅ Registered: ${name} (${startLine}-${endLine})${
+          parentFunction ? ` parent: ${parentFunction}` : ""
+        }`
+      );
+
+      functionIndex.add(functionRecord);
+
+      // Push to stack and traverse children
       functionStack.push(name);
       ts.forEachChild(node, visit);
       functionStack.pop();
     }
 
     function visit(node: ts.Node) {
-      // 1. function Home() {}
+      // 1. function Home() {} - Named function declarations
       if (ts.isFunctionDeclaration(node) && node.name) {
         registerFunction(node.name.text, node);
         return;
       }
 
-      // 2. const handleSubmit = async () => {}
+      // 2. const handleSubmit = async () => {} - Arrow function assignments
       if (
         ts.isVariableDeclaration(node) &&
         node.initializer &&
@@ -61,24 +80,13 @@ export function analyzeFunctionBoundaries(
         return;
       }
 
-      // 3. Method declarations: class methods
+      // 3. Class method declarations
       if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) {
         registerFunction(node.name.text, node);
         return;
       }
 
       // 4. Object literal methods: { handleClick() {} }
-      if (
-        ts.isMethodDeclaration(node) ||
-        ts.isShorthandPropertyAssignment(node)
-      ) {
-        if (ts.isIdentifier(node.name)) {
-          registerFunction(node.name.text, node);
-          return;
-        }
-      }
-
-      // 5. Property assignments with functions: obj.method = function() {}
       if (
         ts.isPropertyAssignment(node) &&
         ts.isIdentifier(node.name) &&
@@ -90,20 +98,35 @@ export function analyzeFunctionBoundaries(
         return;
       }
 
-      // 6. Export const/function patterns
+      // 5. Shorthand method declarations in object literals
+      if (ts.isShorthandPropertyAssignment(node)) {
+        // Skip shorthand properties - they're not function definitions
+        ts.forEachChild(node, visit);
+        return;
+      }
+
+      // 6. Export default function
       if (ts.isExportAssignment(node) && node.expression) {
         if (
           ts.isFunctionExpression(node.expression) ||
           ts.isArrowFunction(node.expression)
         ) {
-          registerFunction("default", node.expression);
+          // Only register if it has a name, otherwise use "default"
+          const name = node.expression.name?.getText() || "default";
+          registerFunction(name, node.expression);
           return;
         }
       }
 
+      // Continue traversing
       ts.forEachChild(node, visit);
     }
 
     visit(sourceFile);
   }
+
+  const total = functionIndex.getAll().length;
+  console.log(
+    `✅ [analyzeFunctionBoundaries] Completed. Found ${total} functions.`
+  );
 }
