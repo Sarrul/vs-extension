@@ -81,6 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     },
   );
+  asndjkasdkajsd
 
   /* ---------- REGISTER ---------- */
   context.subscriptions.push(disposable, roadmapDisposable);
